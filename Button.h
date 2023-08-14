@@ -46,7 +46,7 @@ public:
 	void setTextureRect(const SDL_Rect& rect);
 
 	// Center texture onto button
-	void centerTextureRect();
+	void centerTextureRect(float, char);
 
 	// Set selected
 	void setSelected(const bool selected);
@@ -65,7 +65,10 @@ public:
 	void renderTexture(SDL_Renderer* renderer);
 
 	//Display Rectangle
-	void renderRectangle(SDL_Renderer* renderer, int x, int y, int width, int height, bool fill);
+	void renderRectangle(SDL_Renderer* renderer, SDL_Rect Rect, bool fill);
+
+	//Display rectangle with texts in one function call
+	void renderTexts(SDL_Renderer* renderer, SDL_Rect Rect, SDL_Texture* texture, float minmz, char ch);
 };
 
 //#include "Button.h"
@@ -75,11 +78,10 @@ Button::Button()
 	  mTexture(nullptr),
 	  mButtonRect({ 0, 0, 0, 0 }),
 	  mTextureRect({0, 0, 0, 0}),
-	  mMouseOutColour({ 255, 255, 255, SDL_ALPHA_OPAQUE }), // light purple
-	  //mMouseOutColour({ 153, 209, 213, SDL_ALPHA_OPAQUE }), //light green
-	  mMouseOverMotionColour({ 95, 89, 191, SDL_ALPHA_OPAQUE }),//blue
-	  mMouseDownColour({ 91, 191, 116, SDL_ALPHA_OPAQUE }), // green
-	  mMouseUpColour({ 95, 89, 191, SDL_ALPHA_OPAQUE }), // blue
+	  mMouseOutColour({ 153, 209, 213, SDL_ALPHA_OPAQUE }), // Light Green
+	  mMouseOverMotionColour({204, 255, 255, SDL_ALPHA_OPAQUE }), // Green Blue
+	  mMouseDownColour({ 91, 191, 116, SDL_ALPHA_OPAQUE }), // Green
+	  mMouseUpColour({ 204, 255, 255, SDL_ALPHA_OPAQUE }), // Green Blue
 	  mSelected(false)
 {
 
@@ -100,16 +102,26 @@ void Button::setTextureRect(const SDL_Rect& rect)
 	mTextureRect = rect;
 }
 
-void Button::centerTextureRect()
-{
+void Button::centerTextureRect(float div = 1, char ch= 'y')  //if query texture gave texture huge than required use div to minimize them
+{															//if no need to centarize pass char to initialize from begining of rectangle
 	int textureWidth;
 	int textureHeight;
 	SDL_QueryTexture(mTexture, NULL, NULL, &textureWidth, &textureHeight);
-
-	const int textureStartRow = mButtonRect.y + 0.5 * (mButtonRect.h - textureHeight);
-	const int textureStartCol = mButtonRect.x + 0.5 * (mButtonRect.w - textureWidth);
-
-	mTextureRect = { textureStartCol, textureStartRow, textureWidth, textureHeight };
+	textureHeight/=div;
+	textureWidth/=div;
+	int textureStartRow;
+	int textureStartCol;
+	if (ch == 'y')
+	{
+		textureStartRow = mButtonRect.y + 0.5 * (mButtonRect.h - textureHeight);
+		textureStartCol = mButtonRect.x + 0.5 * (mButtonRect.w - textureWidth);
+	}
+	else
+	{
+		textureStartRow = mButtonRect.y;
+		textureStartCol = mButtonRect.x;
+	}
+	mTextureRect = { textureStartCol, textureStartRow, textureWidth, textureHeight};
 }
 
 void Button::setSelected(const bool selected)
@@ -210,40 +222,14 @@ void Button::renderButton(SDL_Renderer* renderer)
 		case ButtonState::BUTTON_MOUSE_DOWN:
 			SDL_SetRenderDrawColor(renderer, mMouseDownColour.r, mMouseDownColour.g, mMouseDownColour.b, mMouseDownColour.a);
 			break;
-		case ButtonState::BUTTON_MOUSE_UP:
+		/*case ButtonState::BUTTON_MOUSE_UP:
 			SDL_SetRenderDrawColor(renderer, mMouseUpColour.r, mMouseUpColour.g, mMouseUpColour.b, mMouseUpColour.a);
-			break;
-
+			break;*/
 		}
 	}
 
 	SDL_RenderFillRect(renderer, &mButtonRect);
 }
-
-void Button::renderRectangle(SDL_Renderer* renderer, int x, int y, int width, int height, bool fill)
-{
-    // Create an SDL_Surface with the desired color
-   // SDL_Surface* surface = SDL_CreateRGBSurface(0, width, height, 32, 0, 0, 0, 0);
-    // Create an SDL_Texture from the surface
-    //SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
-
-    // Clean up the surface as it's no longer needed
-   // SDL_FreeSurface(surface);
-
-    // Define the rectangle position and dimensions
-    SDL_Rect Rect = { x, y, width, height };
-	if(fill == 1)
-		SDL_RenderFillRect(renderer, &Rect);
-	else
-		SDL_RenderDrawRect(renderer, &Rect);
-
-    // Render the texture
-   // SDL_RenderCopy(renderer, texture, nullptr, &Rect);
-
-    // Clean up the texture
-    //SDL_DestroyTexture(texture);
-}
-
 
 void Button::renderTexture(SDL_Renderer* renderer)
 {
@@ -251,3 +237,43 @@ void Button::renderTexture(SDL_Renderer* renderer)
 	SDL_RenderCopy(renderer, mTexture, nullptr, &mTextureRect);
 }
 
+void Button::renderRectangle(SDL_Renderer* renderer, SDL_Rect Rect, bool fill)
+{
+	if(fill == 1)
+		SDL_RenderFillRect(renderer, &Rect);
+	else
+		SDL_RenderDrawRect(renderer, &Rect);
+}
+
+void Button::renderTexts(SDL_Renderer* renderer, SDL_Rect Rect, SDL_Texture* texture, float minmz = 1, char ch= 'y')
+{
+	int textureWidth;
+	int textureHeight;
+
+    mTexture = texture;
+	mButtonRect = Rect;
+
+	SDL_QueryTexture(mTexture, NULL, NULL, &textureWidth, &textureHeight);
+	textureHeight/=minmz;
+	textureWidth/=minmz;
+
+	int textureStartRow;
+	int textureStartCol;
+	if (ch == 'y')
+	{
+		textureStartRow = mButtonRect.y + 0.5 * (mButtonRect.h - textureHeight);
+		textureStartCol = mButtonRect.x + 0.5 * (mButtonRect.w - textureWidth);
+	}
+	else
+	{
+		textureStartRow = mButtonRect.y;
+		textureStartCol = mButtonRect.x;
+	}
+	mTextureRect = { textureStartCol, textureStartRow, textureWidth, textureHeight};
+
+    // Render the texture
+   SDL_RenderCopy(renderer, mTexture, nullptr, &mTextureRect);
+
+    // Clean up the texture
+   SDL_DestroyTexture(mTexture);
+}

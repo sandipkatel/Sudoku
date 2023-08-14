@@ -15,7 +15,3 @@ int main(int argc, char* argv[])
 
 	return 0;
 }
-
-
-
-//upto Button mTexts; which displays texts at right just declared class to us renderRectangle function of Button

@@ -35,7 +35,8 @@ namespace Sudoku
 
 		// Handle events
 		void handleKeyboardEvent(const SDL_Event* event, SDL_Texture* textureCache[]);
-
+		void handleDisplayedInput(SDL_Texture * textureCatch[], int n);
+		
 		// Compare number with solution
 		bool isCorrect() const;
 
@@ -49,10 +50,9 @@ Sudoku::Cell::Cell()
 	  mCharNumber(' '), 
 	  mCharSolution(' ')
 {
-
 }
 
-void Sudoku::Cell::setNumber(const int number)
+/*void Sudoku::Cell::setNumber(const int number)
 {
 	if (number == 0)
 	{
@@ -62,14 +62,14 @@ void Sudoku::Cell::setNumber(const int number)
 	{
 		mCharNumber = '0' + number;
 	}
-}
+}*/
 
 char Sudoku::Cell::getNumber() const
 {
 	return mCharNumber;
 }
 
-void Sudoku::Cell::setSolution(const int solution)
+/*void Sudoku::Cell::setSolution(const int solution)
 {
 	if (solution == 0)
 	{
@@ -79,24 +79,23 @@ void Sudoku::Cell::setSolution(const int solution)
 	{
 		mCharSolution = '0' + solution;
 	}
-}
+}*/
 
 void Sudoku::Cell::setEditable(const bool editable)
 {
 	mEditable = editable;
 	if (mEditable)
 	{
-		mMouseOutColour = { 219, 184, 215, SDL_ALPHA_OPAQUE }; // light purple
-		mMouseOverMotionColour = { 95, 89, 191, SDL_ALPHA_OPAQUE }; // blue
-		mMouseDownColour = { 91, 191, 116, SDL_ALPHA_OPAQUE }; // green
-		mMouseUpColour = { 95, 89, 191, SDL_ALPHA_OPAQUE }; // blue
-	}
-	else
+		mMouseOutColour = { 153, 209, 213, SDL_ALPHA_OPAQUE }; // light Green
+		mMouseOverMotionColour = { 204, 255, 255, SDL_ALPHA_OPAQUE }; // green blue
+		mMouseDownColour = { 91, 191, 116, SDL_ALPHA_OPAQUE }; // Green
+		mMouseUpColour = { 204, 255, 255, SDL_ALPHA_OPAQUE }; // green blue
+	}else
 	{
-		mMouseOutColour = { 159, 101, 152, SDL_ALPHA_OPAQUE }; // purple
-		mMouseOverMotionColour = { 159, 101, 152, SDL_ALPHA_OPAQUE }; // purple
-		mMouseDownColour = { 159, 101, 152, SDL_ALPHA_OPAQUE }; // purple
-		mMouseUpColour = { 159, 101, 152, SDL_ALPHA_OPAQUE }; // purple
+		mMouseOutColour = { 192, 192, 192, SDL_ALPHA_OPAQUE }; // Gray
+		mMouseOverMotionColour = { 192, 192, 192, SDL_ALPHA_OPAQUE }; // Gray
+		mMouseDownColour = { 192, 192, 192, SDL_ALPHA_OPAQUE }; // Gray
+		mMouseUpColour = { 192, 192, 192, SDL_ALPHA_OPAQUE }; // Gray
 	}
 }
 
@@ -108,7 +107,7 @@ bool Sudoku::Cell::isEditable() const
 void Sudoku::Cell::handleKeyboardEvent(const SDL_Event* event, SDL_Texture* textureCache[])
 {
 	// Handle backspace
-	if (event->key.keysym.sym == SDLK_BACKSPACE && mCharNumber != ' ')
+	if (event->key.keysym.sym == SDLK_BACKSPACE /*&& mCharNumber != ' '*/)
 	{
 		// Empty char
 		mCharNumber = ' ';
@@ -132,9 +131,20 @@ void Sudoku::Cell::handleKeyboardEvent(const SDL_Event* event, SDL_Texture* text
 	}
 }
 
+void Sudoku::Cell::handleDisplayedInput(SDL_Texture * textureCatch[], int n)
+{
+	if(n == 0)
+	{
+		mCharNumber = ' ';
+		setTexture(textureCatch[0]);
+	}
+	else
+		mCharNumber = '0' + n;
+		setTexture(textureCatch[n]);
+}
+
 
 bool Sudoku::Cell::isCorrect() const
 {
 	return mCharNumber == mCharSolution;
 }
-

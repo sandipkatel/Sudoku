@@ -43,15 +43,10 @@ namespace Sudoku
 
 		// Generate Sudoku from completed Sudoku and return a pointer to it
 		void generate(int* grid, int* solutionGrid);
-
-		// Display Sudoku to console (for debugging)
-		void display() const;
-
 	};
-
 };
-//#include "SudokuGenerator.h"
 
+//#include "SudokuGenerator.h"
 Sudoku::Generator::Generator()
 	: mGrid(nullptr), mGridSolution(nullptr)
 {
@@ -262,7 +257,7 @@ void Sudoku::Generator::generate(int* grid, int* solutionGrid)
 	int removingNumber = 0;
 
 	// Elements to remove
-	int toRemove = 50;
+	int toRemove = 30;
 
 	while (toRemove)
 	{
@@ -289,16 +284,4 @@ void Sudoku::Generator::generate(int* grid, int* solutionGrid)
 		// 4. Repeat, until enough numbers removed
 	}
 
-}
-
-void Sudoku::Generator::display() const
-{
-	for (int row = 0; row < 9; row++)
-	{
-		for (int col = 0; col < 9; col++)
-		{
-			std::cout << getElement(row, col) << ", ";
-		}
-		std::cout << std::endl;
-	}
 }

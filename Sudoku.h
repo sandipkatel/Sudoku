@@ -1,9 +1,4 @@
 #pragma once
-/*---------------------------------------------A Sudoku Sudoku-------------------------------------------------*/
-				// SDL Lazy Foo' Tutorials = https://lazyfoo.net/tutorials/SDL/index.php
-				// SDL Documentation = https://wiki.libsdl.org/FrontPage
-				// SDL True Type Fonts = https://www.libsdl.org/projects/SDL_ttf/
-
 #include <SDL2/SDL.h> 
 #include <iostream>
 #include <iomanip>
@@ -22,9 +17,6 @@ namespace Sudoku
 		const int mWindowHeight;
 		const int mWindowWidth;
 
-		const int WindowHeight = 690;
-		const int WindowWidth = 1280;
-
 		// Define Sudoku grid dimensions
 		const int mGridHeight;
 		const int mGridWidth;
@@ -36,6 +28,10 @@ namespace Sudoku
 		// Define window and renderer
 		SDL_Window* mWindow;
 		SDL_Renderer* mRenderer;
+
+		//Define window surface and image surfaces
+		SDL_Surface *mWindowSurface;
+		SDL_Surface *mImageSurface;
 
 		// Texture cache to hold preloaded textures
 		int mTotalTextures;
@@ -65,7 +61,10 @@ namespace Sudoku
 		SDL_Color mClearColour;
 
 		//Textures at Right
-		Button mTexts;
+		Button mTexts[10];
+
+		//Texture 1 to 9 input Box
+		Button mInput[10];
 
 	private:
 		// Intialise SDL window, renderer and true type font
@@ -79,6 +78,9 @@ namespace Sudoku
 
 		// Preload textures using SDL true type fonts
 		void preloadTextures();
+
+		//Create Home screen Layout
+		void homeScreen();
 
 		// Create interface layout by setting button parameters
 		void createInterfaceLayout();
@@ -111,10 +113,11 @@ namespace Sudoku
 //----------------------------------Constructor and Destructor---------------------------------//
 Sudoku::Sudoku::Sudoku()
 	: //mWindowHeight(880), mWindowWidth(720),
-	mWindowHeight(720), mWindowWidth(720),
+	mWindowHeight(690), mWindowWidth(1280),
 	mGridHeight(720), mGridWidth(720),
 	mGridRows(9), mGridCols(9),
-	mWindow(nullptr), mRenderer(nullptr), 
+	mWindow(nullptr), mRenderer(nullptr),
+	mImageSurface(nullptr), mWindowSurface(nullptr),
 	mTotalTextures(14), mTextureCache{ nullptr },
 	mFont(nullptr), mFontSize(mGridHeight/12),
 	mTotalCells(81),
@@ -150,7 +153,7 @@ bool Sudoku::Sudoku::initialiseSDL()
 	}
 
 	// Create window
-	mWindow = SDL_CreateWindow("Sudoku", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, WindowWidth, WindowHeight, SDL_WINDOW_SHOWN);
+	mWindow = SDL_CreateWindow("Sudoku", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, mWindowWidth, mWindowHeight, SDL_WINDOW_SHOWN);
 	if (mWindow == nullptr)
 	{
 		std::cout << "SDL could not create window! Error: " << SDL_GetError() << std::endl;
@@ -165,11 +168,22 @@ bool Sudoku::Sudoku::initialiseSDL()
 		success = false;
 	}
 
+	//Load Window Surface
+	mWindowSurface = SDL_GetWindowSurface(mWindow);
+
+	 //Load splash image
+    mImageSurface = SDL_LoadBMP( "Sudoku.bmp");
+    if( mImageSurface == NULL )
+    {
+        std::cout<<"SDL could not load the image! Error: "<<SDL_GetError()<<std::endl;
+        success = false;
+    }
+
 	// Load font for text
 	mFont = TTF_OpenFont("arial.ttf", mFontSize);
 	if (mFont == nullptr)
 	{
-		std::cout << "Failed to load lazy font! Error: " << TTF_GetError() << std::endl;
+		std::cout << "Failed to load arial font! Error: " << TTF_GetError() << std::endl;
 		success = false;
 	}
 
@@ -228,6 +242,9 @@ void Sudoku::Sudoku::preloadTextures()
 	loadTexture(mTextureCache[17], bestscore, fontColour);
 	loadTexture(mTextureCache[18], bestgammer, fontColour);
 	loadTexture(mTextureCache[19], "Hint", fontColour);
+	loadTexture(mTextureCache[20], "START", fontColour);
+	loadTexture(mTextureCache[21], "ABOUT", fontColour);
+	loadTexture(mTextureCache[22], "BEST SCORE", fontColour);
 }
 
 void Sudoku::Sudoku::createInterfaceLayout()
@@ -244,22 +261,18 @@ void Sudoku::Sudoku::createInterfaceLayout()
 	mRectangle.renderRectangle(mRenderer,buttonRect, fill);
 
 
-	/*----------------------------------Create buttons for each cell-------------------------------------*/
+	/*Create buttons for each cell*/
 	// Define thick and thin borders
     const int thinBorder = 2;
     const int thickBorder = thinBorder + 6;
 
-	// Define cell button dimensions
 	// mGridWidth = 6 * thinBorder + 4 * thickBorder + 9 * buttonWidth (rearrange this equation)
 	int buttonWidth = (mGridWidth - 6 * thinBorder - 4 * thickBorder) / mGridCols;
-	int buttonHeight = buttonWidth-thickBorder;
+	int buttonHeight = buttonWidth-thickBorder + 2*thinBorder;
 
 	//Define start state
 	int buttonStartRow = 0; 
 	int buttonStartCol = 0;
-	
-	// Carry on from previous starting row
-	//buttonStartRow += buttonHeight;
 
 	// Set cell button position and dimensions
 	for (int gridRow = 0; gridRow < mGridRows; gridRow++)
@@ -287,43 +300,38 @@ void Sudoku::Sudoku::createInterfaceLayout()
 	}
 
 	//Right side
-	int rightX = mGridWidth + buttonHeight;
+	//Redegine button height it is no more required for cell
+	buttonHeight = buttonWidth-thickBorder;
+	const int rightSide = mGridWidth + buttonHeight;
+	int rightX = rightSide;
 	int rightY = buttonHeight;
 	int width  = 8;
 	int height = mGridHeight-2*buttonHeight;
 
 	//Display the seperator line
-	SDL_SetRenderDrawColor(mRenderer, 0, 0, 0, 255);
+	SDL_SetRenderDrawColor(mRenderer, 0, 0, 0, 255);   //black
 	buttonRect = {rightX, rightY, width, height};
 	mRectangle.renderRectangle(mRenderer,buttonRect, fill);
 
 	rightX += width;
-	buttonWidth = (WindowWidth-rightX);
+	buttonWidth = (mWindowWidth-rightX);
 	buttonHeight/=1.5;
 	rightY = thickBorder;
-	//Display Sudoku
-	buttonRect = {rightX, rightY, buttonWidth, buttonHeight};
-	mTexts.setButtonRect(buttonRect);
-	mTexts.setTexture(mTextureCache[14]);
-	mTexts.centerTextureRect(1.5);
-	mTexts.renderTexture(mRenderer);
 
 	//Display Sudoku
+	buttonRect = {rightX, rightY, buttonWidth, buttonHeight};
+	mTexts[1].renderTexts(mRenderer, buttonRect, mTextureCache[14], 1.5);
+
+	//Display Exit
 	buttonRect = {rightX + buttonWidth - buttonHeight, rightY, buttonHeight, buttonHeight/2};
-	mTexts.setButtonRect(buttonRect);
-	mTexts.setTexture(mTextureCache[15]);
-	mTexts.centerTextureRect(2.5);
-	mTexts.renderTexture(mRenderer);
-	mTexts.renderRectangle(mRenderer, buttonRect, draw);
+	mTexts[2].renderTexts(mRenderer, buttonRect, mTextureCache[15], 2.5);
+	mTexts[2].renderRectangle(mRenderer, buttonRect, draw);
 
 	//set username
 	rightX += buttonHeight;
 	rightY +=buttonHeight;
 	buttonRect = {rightX, rightY, buttonWidth, buttonHeight};
-	mTexts.setButtonRect(buttonRect);
-	mTexts.setTexture(mTextureCache[16]);
-	mTexts.centerTextureRect(1.5, 'n');
-	mTexts.renderTexture(mRenderer);
+	mTexts[3].renderTexts(mRenderer, buttonRect, mTextureCache[16], 1.5, 'n');
 
 	//set timer rect
 	rightY +=buttonHeight;
@@ -333,20 +341,14 @@ void Sudoku::Sudoku::createInterfaceLayout()
 	//display best score and best scorer
 	rightY +=buttonHeight;
 	buttonRect = {rightX, rightY, buttonWidth, buttonHeight};
-	mTexts.setButtonRect(buttonRect);
-	mTexts.setTexture(mTextureCache[17]);
-	mTexts.centerTextureRect(2);
-	mTexts.renderTexture(mRenderer);
+	mTexts[4].renderTexts(mRenderer, buttonRect, mTextureCache[17], 2);
 
 	rightY +=buttonHeight/1.5;
 	buttonRect = {rightX, rightY, buttonWidth, buttonHeight};
-	mTexts.setButtonRect(buttonRect);
-	mTexts.setTexture(mTextureCache[18]);
-	mTexts.centerTextureRect(2);
-	mTexts.renderTexture(mRenderer);
+	mTexts[5].renderTexts(mRenderer, buttonRect, mTextureCache[18], 2);
 
 
-	/*----------------------------------Create check, and new buttons-------------------------------------*/
+						//Create check and New button
 	const int numberOfOtherButtons = 2;
 	mCheckButton.setTexture(mTextureCache[10]);
 	mNewButton.setTexture(mTextureCache[11]);
@@ -354,24 +356,56 @@ void Sudoku::Sudoku::createInterfaceLayout()
 
 	// Set check, solve, and new buttons (last row)
 	buttonWidth/=2;
-	rightX = rightX + ((WindowWidth - rightX) - buttonWidth)/2;
+	rightX = rightSide + ((mWindowWidth - rightX) - buttonWidth)/2;
 	for (int button = 0; button < numberOfOtherButtons; button++) // colBlock is every 3 columns of cells
 	{
 		rightY+=buttonHeight +thickBorder;
 		// Set button position and dimensions
-		SDL_Rect buttonRect = { rightX-1, rightY-1, buttonWidth+2, buttonHeight+2};
-		otherButtons[button]->renderRectangle(mRenderer,buttonRect, draw);  //mantanance is required to make both draw and display
 		buttonRect = { rightX, rightY, buttonWidth, buttonHeight};
 		otherButtons[button]->setButtonRect(buttonRect);
+		buttonRect = { rightX-1, rightY-1, buttonWidth+2, buttonHeight+2};
+		otherButtons[button]->renderRectangle(mRenderer,buttonRect, draw);  //mantanance is required to make both draw and display
 	}
+
+							//Display InputBar 1 - 9
+	//redefine staarting point of input and hight, width
+	buttonHeight*=2;
+	buttonWidth = buttonHeight;
+	rightX = rightSide + buttonHeight;
+	rightY += buttonHeight;
+	int n = 1;
+	for(int i =0; i<3; i++)
+	{
+		for(int j = 0; j<3; j++)
+		{
+			buttonRect = { rightX, rightY, buttonWidth, buttonHeight};
+			mInput[n].setButtonRect(buttonRect);
+			buttonRect = { rightX-1, rightY-1, buttonWidth+2, buttonHeight+2};
+			mInput[n].renderRectangle(mRenderer,buttonRect, draw);
+			rightX += buttonHeight + 1;
+			n++;
+		}
+		rightX = rightSide + buttonHeight;
+		rightY += buttonHeight + 1;				//add 1 means gap to avoid override
+	}
+	buttonWidth = buttonWidth*3 + 2;
+	buttonHeight /= 2;
+	buttonRect = { rightX, rightY, buttonWidth, buttonHeight};
+	mInput[0].setButtonRect(buttonRect);
+	buttonRect = { rightX-1, rightY-1, buttonWidth+2, buttonHeight+2};
+	mInput[0].renderRectangle(mRenderer,buttonRect, draw);
+
+	preloadTextures();
+	// Update screen from backbuffer and clear backbuffer
+	SDL_RenderPresent(mRenderer);
 }
 
 void Sudoku::Sudoku::generateSudoku()
 {
-	// Create empty an empty grid to store generated Sudoku
+	// Create empty grid to store generated Sudoku
 	int generatedGrid[81] = { };
 
-	// Create empty an empty grid to store solution to generated Sudoku
+	// Create empty grid to store solution to generated Sudoku
 	int solution[81] = { };
 
 	// Instantiate a Sudoku generator object and generate Sudoku with the empty grids
@@ -381,8 +415,8 @@ void Sudoku::Sudoku::generateSudoku()
 	for (int i = 0; i < 81; i++)
 	{
 		// Set number and solution
-		mGrid[i].setNumber(generatedGrid[i]);
-		mGrid[i].setSolution(solution[i]); 
+		//mGrid[i].setNumber(generatedGrid[i]);
+		//mGrid[i].setSolution(solution[i]); 
 
 		// Set editability
 		if (generatedGrid[i] == 0)
@@ -401,7 +435,6 @@ void Sudoku::Sudoku::generateSudoku()
 
 		// Center texture onto button
 		mGrid[i].centerTextureRect();
-
 	}
 }
 
@@ -418,6 +451,28 @@ void Sudoku::Sudoku::freeTextures()
 	}
 }
 
+void Sudoku::Sudoku::homeScreen()
+{
+	// Blit the image onto the window surface
+    SDL_BlitSurface(mImageSurface, nullptr, mWindowSurface, nullptr);
+    SDL_UpdateWindowSurface(mWindow);
+
+	SDL_Event event;
+	bool stop = false;
+	while(!stop){
+		// Handle events on queue
+		while (SDL_PollEvent(&event) != 0)
+		{
+			// Handle quiting and completion
+			if (event.type == SDL_QUIT)
+			{
+				// Set stop flag
+				stop = true;
+			}
+	}
+	}
+}
+
 //--------------------------------------Public methods----------------------------------------//
 void Sudoku::Sudoku::play()
 {
@@ -429,14 +484,17 @@ void Sudoku::Sudoku::play()
 	// Preload textures for Sudoku grid and buttons
 	preloadTextures();
 
+	//Display Home Screen
+	homeScreen();
+
 	// Create interface layout
 	createInterfaceLayout();
 
 	// Generate Sudoku, set textures, and editability of each cell
 	generateSudoku();
 
-	// Set first current cell selected
 	Cell* currentCellSelected = &mGrid[0];
+	/*// Set first current cell selected
 	for (int cell = 0; cell < mTotalCells; cell++)
 	{
 		if (mGrid[cell].isEditable())
@@ -445,7 +503,7 @@ void Sudoku::Sudoku::play()
 			currentCellSelected->setSelected(true);
 			break;
 		}
-	}
+	}*/
 
 	// Enable text input
 	SDL_StartTextInput();
@@ -507,7 +565,7 @@ void Sudoku::Sudoku::play()
 						// Set current cell selected to false
 						currentCellSelected->setSelected(false);
 						
-						// Set new cell selected to true
+						// Set new cell selected to true          
 						currentCellSelected = &mGrid[cell];
 						currentCellSelected->setSelected(true);
 					}
@@ -515,6 +573,17 @@ void Sudoku::Sudoku::play()
 			}
 			// Handle keyboard events for current cell selected
 			currentCellSelected->handleKeyboardEvent(&event, mTextureCache);
+
+			//Handle mouse event for input Buttons
+			for(int i = 0; i<= 9; i++)
+			{
+				mInput[i].setTexture(mTextureCache[i]);
+				if(mInput[i].getMouseEvent(&event) == ButtonState::BUTTON_MOUSE_DOWN)
+					currentCellSelected->handleDisplayedInput(mTextureCache, i);
+				mInput[i].renderButton(mRenderer);
+				mInput[i].centerTextureRect();
+				mInput[i].renderTexture(mRenderer);
+			}
 		}
 		// If "New" button was clicked
 		if (generateNewSudoku)
