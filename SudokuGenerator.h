@@ -42,7 +42,7 @@ namespace Sudoku
 		Generator();
 
 		// Generate Sudoku from completed Sudoku and return a pointer to it
-		void generate(int* grid, int* solutionGrid);
+		void generate(int* grid, int* solutionGrid, Buttons);
 	};
 };
 
@@ -229,7 +229,7 @@ void Sudoku::Generator::createCompletedSudoku()
 }
 
 //--------------------------------------Public methods----------------------------------------//
-void Sudoku::Generator::generate(int* grid, int* solutionGrid)
+void Sudoku::Generator::generate(int* grid, int* solutionGrid, Buttons LEVEL)
 {
 	// Set the Sudoku grid and solution grid
 	mGrid = grid;
@@ -257,7 +257,14 @@ void Sudoku::Generator::generate(int* grid, int* solutionGrid)
 	int removingNumber = 0;
 
 	// Elements to remove
-	int toRemove = 30;
+	int toRemove;
+	if(LEVEL == Buttons::HARD)
+		toRemove = 50;
+	else if(LEVEL == Buttons::MEDIUM)
+		toRemove = 40;
+	else if(LEVEL == Buttons::EASY)
+		//toRemove = 30;
+		toRemove = 30;
 
 	while (toRemove)
 	{

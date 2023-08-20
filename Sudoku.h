@@ -1,5 +1,6 @@
 #pragma once
-#include <SDL2/SDL.h> 
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_image.h> 
 #include <iostream>
 #include <iomanip>
 #include <time.h>  
@@ -7,6 +8,7 @@
 #include "Button.h"
 #include "SudokuCell.h"
 #include "SudokuGenerator.h"
+#include "fileHandling.h"
 
 namespace Sudoku
 {
@@ -30,12 +32,13 @@ namespace Sudoku
 		SDL_Renderer* mRenderer;
 
 		//Define window surface and image surfaces
-		SDL_Surface *mWindowSurface;
-		SDL_Surface *mImageSurface;
+		SDL_Texture* mImageTexture;
+		SDL_Surface* mImageSurface;
 
 		// Texture cache to hold preloaded textures
 		int mTotalTextures;
-		SDL_Texture* mTextureCache[30];
+		SDL_Texture* mTextureCache[20];
+		SDL_Texture* mKeyTextureCache[10];
 
 		// Define true type font paramaters
 		TTF_Font* mFont;
@@ -44,6 +47,16 @@ namespace Sudoku
 		// Define total buttons
 		const int mTotalCells;
 
+		//Define Gray, Black and white color
+		SDL_Color GrayColor;
+		SDL_Color BlackColor;
+
+		//User name, Best Score, Best Player and time from file
+		std::string mUserName;
+		std::string mBestScore;
+		std::string mBestPlayer;
+		int mTime;
+
 		// Define grid of cells (normally set to 9 x 9 = 81)
 		Cell mGrid[81];
 
@@ -51,27 +64,30 @@ namespace Sudoku
 		Button mRectangle;
 
 		// Define check and new buttons
-		Button mCheckButton;
+		Button mHintButton;
 		Button mNewButton;
 
 		// Timer
 		Button mTimer;
 
+		//File
+		handleFile myfile;
+
 		// Define colours 
 		SDL_Color mClearColour;
 
 		//Textures at Right
-		Button mTexts[10];
+		Button mTexts[20];
 
 		//Texture 1 to 9 input Box
 		Button mInput[10];
 
+		//Exit Button
+		Button mExit;
+
 	private:
 		// Intialise SDL window, renderer and true type font
 		bool initialiseSDL();
-
-		// Get index of 1D array from row and col
-		inline int getIndex(int row, int col) const;
 
 		// Load textures using SDL true type fonts
 		void loadTexture(SDL_Texture*& texture, const char* text, SDL_Color& fontColour);
@@ -79,17 +95,44 @@ namespace Sudoku
 		// Preload textures using SDL true type fonts
 		void preloadTextures();
 
-		//Create Home screen Layout
-		void homeScreen();
+		//Load back ground Image
+		void mImage();
+
+		//If game is completed congrate
+		void mCongrate(bool winner);
+
+		// Get index of 1D array from row and col
+		inline int getIndex(int row, int col) const;
 
 		// Create interface layout by setting button parameters
 		void createInterfaceLayout();
 		
 		// Generate a Sudoku puzzle with a unique solution
-		void generateSudoku();
+		void generateSudoku(Buttons);
 
 		// Free textures
 		void freeTextures();
+		
+		//Create Home screen and Level screen Layout
+		Buttons home_levels(Buttons homeLevel);
+
+		//Create Home screen Layout
+		Buttons homeScreen();
+
+		// Play Sudoku
+		Buttons play(Buttons level);
+
+		//Create About screen and Best screen Layout
+		Buttons about_best(Buttons mButton);
+
+		//Create Username Interface
+		Buttons userName();
+
+		//Display Level
+		Buttons levels();
+
+		//Exit Button is common to all display
+		void exitButton();
 
 	public:
 		// Constructor to intialise member variables
@@ -99,8 +142,8 @@ namespace Sudoku
 		~Sudoku();
 
 	public:
-		// Play Sudoku
-		void play();
+		//Function call controller and display
+		void display();
 
 		// Close Sudoku
 		void close();
@@ -112,16 +155,18 @@ namespace Sudoku
 
 //----------------------------------Constructor and Destructor---------------------------------//
 Sudoku::Sudoku::Sudoku()
-	: //mWindowHeight(880), mWindowWidth(720),
-	mWindowHeight(690), mWindowWidth(1280),
-	mGridHeight(720), mGridWidth(720),
+	:mWindowHeight(690), mWindowWidth(1280),
+	mGridHeight(690), mGridWidth(720),
 	mGridRows(9), mGridCols(9),
 	mWindow(nullptr), mRenderer(nullptr),
-	mImageSurface(nullptr), mWindowSurface(nullptr),
+	mImageSurface(nullptr), mImageTexture(nullptr),
 	mTotalTextures(14), mTextureCache{ nullptr },
-	mFont(nullptr), mFontSize(mGridHeight/12),
-	mTotalCells(81),
-	mClearColour({ 0, 0, 0, SDL_ALPHA_OPAQUE })
+	mKeyTextureCache{ nullptr }, mFont(nullptr),
+	mFontSize(mGridHeight/15), mTotalCells(81),
+	GrayColor({ 192, 192, 192, SDL_ALPHA_OPAQUE}),
+	BlackColor({ 0, 0, 0, SDL_ALPHA_TRANSPARENT}),
+	mUserName("username: unknown"), mBestPlayer("By: unknown"),
+	mBestScore("Shortest Time: unknown"), mTime(0)
 {
 
 }
@@ -153,7 +198,7 @@ bool Sudoku::Sudoku::initialiseSDL()
 	}
 
 	// Create window
-	mWindow = SDL_CreateWindow("Sudoku", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, mWindowWidth, mWindowHeight, SDL_WINDOW_SHOWN);
+	mWindow = SDL_CreateWindow("Sudoku", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, mWindowWidth, mWindowHeight, SDL_WINDOW_SHOWN);
 	if (mWindow == nullptr)
 	{
 		std::cout << "SDL could not create window! Error: " << SDL_GetError() << std::endl;
@@ -161,21 +206,18 @@ bool Sudoku::Sudoku::initialiseSDL()
 	}
 
 	// Create renderer
-	mRenderer = SDL_CreateRenderer(mWindow, -1, 0);
+	mRenderer = SDL_CreateRenderer(mWindow, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 	if (mRenderer == nullptr)
 	{
 		std::cout << "SDL could not create renderer! Error: " << SDL_GetError() << std::endl;
 		success = false;
 	}
 
-	//Load Window Surface
-	mWindowSurface = SDL_GetWindowSurface(mWindow);
-
-	 //Load splash image
-    mImageSurface = SDL_LoadBMP( "Sudoku.bmp");
+	//Load splash image
+    mImageSurface = IMG_Load("Sudoku.bmp");
     if( mImageSurface == NULL )
     {
-        std::cout<<"SDL could not load the image! Error: "<<SDL_GetError()<<std::endl;
+        std::cout<<"SDL could not load the image! Error: "<<IMG_GetError()<<std::endl;
         success = false;
     }
 
@@ -217,35 +259,86 @@ void Sudoku::Sudoku::loadTexture(SDL_Texture*& texture, const char* text, SDL_Co
 
 void Sudoku::Sudoku::preloadTextures()
 {
-	// Choose colour of font
-	SDL_Color fontColour = { 0, 0, 0, SDL_ALPHA_OPAQUE }; // black
+	//use username;
+	std::string user = "username: ";
+	user += mUserName;
 
 	// Load texture for empty space
-	loadTexture(mTextureCache[0], " ", fontColour);
+	loadTexture(mTextureCache[0], " ", BlackColor);
 
 	// Load textures for numbers from 1 to 9
 	char temp[] = {'1', '2', '3', '4', '5', '6', '7', '8', '9'};
     for (int i = 1; i < 10; i++)
     {   
         char tmp[2] = {temp[i-1], '\0'};
-        loadTexture(mTextureCache[i],tmp, fontColour);
+        loadTexture(mTextureCache[i], tmp, BlackColor);
+		loadTexture(mKeyTextureCache[i], tmp , BlackColor);
     }
 
 	// Load textures
-	loadTexture(mTextureCache[10], "Check", fontColour);
-	loadTexture(mTextureCache[11], "New", fontColour);
-	loadTexture(mTextureCache[12], "Wrong!", fontColour);
-	loadTexture(mTextureCache[13], "Right!", fontColour);
-	loadTexture(mTextureCache[14], "SUDOKU", fontColour);
-	loadTexture(mTextureCache[15], "Exit", fontColour);
-	loadTexture(mTextureCache[16], username, fontColour);
-	loadTexture(mTextureCache[17], bestscore, fontColour);
-	loadTexture(mTextureCache[18], bestgammer, fontColour);
-	loadTexture(mTextureCache[19], "Hint", fontColour);
-	loadTexture(mTextureCache[20], "START", fontColour);
-	loadTexture(mTextureCache[21], "ABOUT", fontColour);
-	loadTexture(mTextureCache[22], "BEST SCORE", fontColour);
+	loadTexture(mTextureCache[10], "Hint", BlackColor);
+	loadTexture(mTextureCache[11], "New", BlackColor);
+	loadTexture(mTextureCache[12], "SUDOKU", BlackColor);
+	loadTexture(mTextureCache[13], user.c_str(), BlackColor);
+	loadTexture(mTextureCache[14], mBestScore.c_str(), BlackColor);
+	loadTexture(mTextureCache[15], mBestPlayer.c_str(), BlackColor);
 }
+
+void Sudoku::Sudoku::mImage()
+{
+	// Convert image surface to texture
+    mImageTexture = SDL_CreateTextureFromSurface(mRenderer, mImageSurface);
+
+    //Define the rectangle equal to screen width and Height
+    SDL_Rect rect = {0, 0, mWindowWidth, mWindowHeight};
+
+    // Render the image texture inside the rectangle
+    SDL_RenderCopy(mRenderer, mImageTexture, nullptr, &rect);
+	
+	// Update the screen
+    SDL_RenderPresent(mRenderer);
+}
+
+void Sudoku::Sudoku::mCongrate(bool winner)
+{
+	//Display Rectangle
+	int rectWidth = mWindowWidth/1.5;
+	int rectHeight = mWindowHeight/3;
+	int initialX = (mWindowWidth - rectWidth)/2;
+	int initialY = (mWindowHeight - rectHeight)/2;
+	SDL_SetRenderDrawColor(mRenderer, 255, 255, 255, SDL_ALPHA_OPAQUE );
+	SDL_Rect buttonRect = { initialX, initialY, rectWidth, rectHeight };
+	mRectangle.renderRectangle(mRenderer,buttonRect, true);
+
+	//Display Congratulation words
+	SDL_Texture* texture;
+	SDL_Color lightGreen = { 200, 73, 46, SDL_ALPHA_OPAQUE };
+	if(winner)
+		loadTexture(texture, " NEW BEST SCORE ", lightGreen);
+	else
+		loadTexture(texture, " YOU DID IT ", lightGreen);
+	mTexts[9].renderTexts(mRenderer, buttonRect, texture, 0.5, 'y');
+	
+	//Redclare for new Rectangle
+	rectWidth /= 2;
+	rectHeight /= 12;
+	initialX = (mWindowWidth - rectWidth)/2;
+	initialY = (mWindowHeight - rectHeight)/2;
+	buttonRect = { initialX, initialY, rectWidth, rectHeight };
+	mRectangle.renderRectangle(mRenderer,buttonRect, true);
+
+	std::string congrateName = " Congratulation! ";
+	congrateName += mUserName;
+	loadTexture(texture, congrateName.c_str(), BlackColor);
+	mTexts[9].renderTexts(mRenderer, buttonRect, texture, 2, 'y');
+
+	// Update the screen
+    SDL_RenderPresent(mRenderer);
+
+	// Wait for four seconds
+	SDL_Delay(4000);
+}
+
 
 void Sudoku::Sudoku::createInterfaceLayout()
 {
@@ -299,8 +392,8 @@ void Sudoku::Sudoku::createInterfaceLayout()
 		}
 	}
 
-	//Right side
-	//Redegine button height it is no more required for cell
+	//Right side interface layout
+	//Redeclare button height it is no more required for cell
 	buttonHeight = buttonWidth-thickBorder;
 	const int rightSide = mGridWidth + buttonHeight;
 	int rightX = rightSide;
@@ -320,43 +413,39 @@ void Sudoku::Sudoku::createInterfaceLayout()
 
 	//Display Sudoku
 	buttonRect = {rightX, rightY, buttonWidth, buttonHeight};
-	mTexts[1].renderTexts(mRenderer, buttonRect, mTextureCache[14], 1.5);
-
-	//Display Exit
-	buttonRect = {rightX + buttonWidth - buttonHeight, rightY, buttonHeight, buttonHeight/2};
-	mTexts[2].renderTexts(mRenderer, buttonRect, mTextureCache[15], 2.5);
-	mTexts[2].renderRectangle(mRenderer, buttonRect, draw);
+	mTexts[1].renderTexts(mRenderer, buttonRect, mTextureCache[12], 1.5);
 
 	//set username
 	rightX += buttonHeight;
 	rightY +=buttonHeight;
 	buttonRect = {rightX, rightY, buttonWidth, buttonHeight};
-	mTexts[3].renderTexts(mRenderer, buttonRect, mTextureCache[16], 1.5, 'n');
+	mTexts[2].renderTexts(mRenderer, buttonRect, mTextureCache[13], 1.5, 'n');
 
 	//set timer rect
 	rightY +=buttonHeight;
 	buttonRect = {rightX, rightY, buttonWidth, buttonHeight};
 	mTimer.setButtonRect(buttonRect);
 
-	//display best score and best scorer
+	//display best score
 	rightY +=buttonHeight;
 	buttonRect = {rightX, rightY, buttonWidth, buttonHeight};
-	mTexts[4].renderTexts(mRenderer, buttonRect, mTextureCache[17], 2);
+	mTexts[3].renderTexts(mRenderer, buttonRect, mTextureCache[14], 2, 'n');
 
+	//display best scorer
 	rightY +=buttonHeight/1.5;
 	buttonRect = {rightX, rightY, buttonWidth, buttonHeight};
-	mTexts[5].renderTexts(mRenderer, buttonRect, mTextureCache[18], 2);
+	mTexts[4].renderTexts(mRenderer, buttonRect, mTextureCache[15], 2);
 
 
-						//Create check and New button
+						//Create Hint and New button
 	const int numberOfOtherButtons = 2;
-	mCheckButton.setTexture(mTextureCache[10]);
+	mHintButton.setTexture(mTextureCache[10]);
 	mNewButton.setTexture(mTextureCache[11]);
-	Button* otherButtons[numberOfOtherButtons] = { &mCheckButton, &mNewButton };
+	Button* otherButtons[numberOfOtherButtons] = { &mHintButton, &mNewButton };
 
-	// Set check, solve, and new buttons (last row)
+	// Set check, solve, and new buttons
 	buttonWidth/=2;
-	rightX = rightSide + ((mWindowWidth - rightX) - buttonWidth)/2;
+	rightX = rightSide + ((mWindowWidth - rightSide) - buttonWidth)/2;
 	for (int button = 0; button < numberOfOtherButtons; button++) // colBlock is every 3 columns of cells
 	{
 		rightY+=buttonHeight +thickBorder;
@@ -367,12 +456,13 @@ void Sudoku::Sudoku::createInterfaceLayout()
 		otherButtons[button]->renderRectangle(mRenderer,buttonRect, draw);  //mantanance is required to make both draw and display
 	}
 
-							//Display InputBar 1 - 9
+							//Display InputBar Rectangle 1 - 9
 	//redefine staarting point of input and hight, width
 	buttonHeight*=2;
 	buttonWidth = buttonHeight;
-	rightX = rightSide + buttonHeight;
+	rightX = rightSide + ((mWindowWidth - rightSide) - 3*buttonHeight)/2;
 	rightY += buttonHeight;
+	int xBuf = rightX;
 	int n = 1;
 	for(int i =0; i<3; i++)
 	{
@@ -385,7 +475,7 @@ void Sudoku::Sudoku::createInterfaceLayout()
 			rightX += buttonHeight + 1;
 			n++;
 		}
-		rightX = rightSide + buttonHeight;
+		rightX = xBuf;
 		rightY += buttonHeight + 1;				//add 1 means gap to avoid override
 	}
 	buttonWidth = buttonWidth*3 + 2;
@@ -395,12 +485,26 @@ void Sudoku::Sudoku::createInterfaceLayout()
 	buttonRect = { rightX-1, rightY-1, buttonWidth+2, buttonHeight+2};
 	mInput[0].renderRectangle(mRenderer,buttonRect, draw);
 
-	preloadTextures();
+	exitButton();
 	// Update screen from backbuffer and clear backbuffer
 	SDL_RenderPresent(mRenderer);
 }
 
-void Sudoku::Sudoku::generateSudoku()
+void Sudoku::Sudoku::exitButton()
+{
+	bool draw = 0;
+	int buttonWidth = 80;
+	int buttonHeight = 30;
+	int x = mWindowWidth - buttonWidth;
+	int y = buttonHeight;
+	SDL_Texture* texture;
+	loadTexture(texture, "Exit", BlackColor);
+	SDL_Rect buttonRect = { x, y, buttonWidth, buttonHeight };
+	mExit.renderRectangle(mRenderer, buttonRect, draw);
+	mExit.renderTexts(mRenderer, buttonRect, texture, 2);
+}
+
+void Sudoku::Sudoku::generateSudoku(Buttons LEVEL)
 {
 	// Create empty grid to store generated Sudoku
 	int generatedGrid[81] = { };
@@ -410,13 +514,13 @@ void Sudoku::Sudoku::generateSudoku()
 
 	// Instantiate a Sudoku generator object and generate Sudoku with the empty grids
 	Generator G;
-	G.generate(generatedGrid, solution);
+	G.generate(generatedGrid, solution, LEVEL);
 
 	for (int i = 0; i < 81; i++)
 	{
 		// Set number and solution
-		//mGrid[i].setNumber(generatedGrid[i]);
-		//mGrid[i].setSolution(solution[i]); 
+		mGrid[i].setNumber(generatedGrid[i]);
+		mGrid[i].setSolution(solution[i]); 
 
 		// Set editability
 		if (generatedGrid[i] == 0)
@@ -451,50 +555,24 @@ void Sudoku::Sudoku::freeTextures()
 	}
 }
 
-void Sudoku::Sudoku::homeScreen()
-{
-	// Blit the image onto the window surface
-    SDL_BlitSurface(mImageSurface, nullptr, mWindowSurface, nullptr);
-    SDL_UpdateWindowSurface(mWindow);
-
-	SDL_Event event;
-	bool stop = false;
-	while(!stop){
-		// Handle events on queue
-		while (SDL_PollEvent(&event) != 0)
-		{
-			// Handle quiting and completion
-			if (event.type == SDL_QUIT)
-			{
-				// Set stop flag
-				stop = true;
-			}
-	}
-	}
-}
 
 //--------------------------------------Public methods----------------------------------------//
-void Sudoku::Sudoku::play()
+Buttons Sudoku::Sudoku::play(Buttons level)
 {
-	// Initialise SDL
-	if (!initialiseSDL())
-	{
-		close();
-	}
+	//Retrive from File
+	myfile.getData(level, mBestScore, mBestPlayer, mTime);
+
 	// Preload textures for Sudoku grid and buttons
 	preloadTextures();
-
-	//Display Home Screen
-	homeScreen();
 
 	// Create interface layout
 	createInterfaceLayout();
 
 	// Generate Sudoku, set textures, and editability of each cell
-	generateSudoku();
+	generateSudoku(level);
 
+	// Set first current cell selected
 	Cell* currentCellSelected = &mGrid[0];
-	/*// Set first current cell selected
 	for (int cell = 0; cell < mTotalCells; cell++)
 	{
 		if (mGrid[cell].isEditable())
@@ -503,7 +581,7 @@ void Sudoku::Sudoku::play()
 			currentCellSelected->setSelected(true);
 			break;
 		}
-	}*/
+	}
 
 	// Enable text input
 	SDL_StartTextInput();
@@ -511,13 +589,13 @@ void Sudoku::Sudoku::play()
 	// Loop variables
 	SDL_Event event;
 	bool stop = false;
+	bool exit  = false;
 	bool completed = false;
 	bool generateNewSudoku = false;
-	bool checkSolution = false;
-
-	// Timing for check button
-	bool measureTimeForCheckButton = false;
-	time_t startTimeForCheckButton;
+	bool checkHint = false;
+	bool incomplete = true;
+	int hintCount = 0;
+	int incorrectCell = 0;
 
 	// Timer
 	time_t startTimer;
@@ -525,27 +603,31 @@ void Sudoku::Sudoku::play()
 	time(&startTimer);
 
 	struct tm* timeInfo = localtime(&startTimer);
+	std::string elapshedTime;
     timeInfo->tm_hour = 0;
     timeInfo->tm_min = 0;
     timeInfo->tm_sec = 0;
 
-	// Game loop
+	int hours;
+	int minutes;
+	int seconds;
+	int totalTime;
+
 	while (!stop)
 	{
-		// Handle events on queue
 		while (SDL_PollEvent(&event) != 0)
 		{
-			// Handle quiting and completion
 			if (event.type == SDL_QUIT)
 			{
-				// Set stop flag
+				//set stop flag
 				stop = true;
 			}
-			// Handle mouse event for "Check" button
-			if (mCheckButton.getMouseEvent(&event) == ButtonState::BUTTON_MOUSE_DOWN)
+			// Handle mouse event for "Hint" button
+			if (mHintButton.getMouseEvent(&event) == ButtonState::BUTTON_MOUSE_DOWN)
 			{
 				// Set check solution flag
-				checkSolution = true;
+				hintCount++;
+				checkHint = true;
 			}
 			// Handle mouse event for "New" button
 			if (mNewButton.getMouseEvent(&event) == ButtonState::BUTTON_MOUSE_DOWN)
@@ -553,6 +635,7 @@ void Sudoku::Sudoku::play()
 				// Set generate new Sudoku flag
 				generateNewSudoku = true;
 			}
+
 			// Handle mouse event for cells
 			for (int cell = 0; cell < mTotalCells; cell++)
 			{
@@ -571,25 +654,33 @@ void Sudoku::Sudoku::play()
 					}
 				}
 			}
-			// Handle keyboard events for current cell selected
-			currentCellSelected->handleKeyboardEvent(&event, mTextureCache);
-
 			//Handle mouse event for input Buttons
 			for(int i = 0; i<= 9; i++)
 			{
 				mInput[i].setTexture(mTextureCache[i]);
 				if(mInput[i].getMouseEvent(&event) == ButtonState::BUTTON_MOUSE_DOWN)
+					//Handle Mouse input Event
 					currentCellSelected->handleDisplayedInput(mTextureCache, i);
 				mInput[i].renderButton(mRenderer);
 				mInput[i].centerTextureRect();
 				mInput[i].renderTexture(mRenderer);
 			}
+
+			// Handle keyboard events for current cell selected
+			currentCellSelected->handleKeyboardEvent(&event, mTextureCache);
+
+			//check if exit is clicked or not
+			if(mExit.getMouseEvent(&event) == ButtonState::BUTTON_MOUSE_DOWN)
+            {
+                exit = stop = true;
+            }
+			mExit.renderEvent(mRenderer);
 		}
 		// If "New" button was clicked
 		if (generateNewSudoku)
 		{
 			// Generate new sudoku
-			generateSudoku();
+			generateSudoku(level);
 
 			// Set current cell selected to false
 			currentCellSelected->setSelected(false);
@@ -607,77 +698,71 @@ void Sudoku::Sudoku::play()
 
 			// Reset flags
 			generateNewSudoku = false;
-			completed = false;
+
+			//Reset Hint to false
+			hintCount = 0;
+			checkHint = false;
+			incorrectCell = 0;
 
 			// Reset timer
 			time(&startTimer);
 		}
-		// If "Check" button was clicked
-		if (checkSolution)
+		
+		for (int cell = 0; cell < mTotalCells; cell++)
 		{
-			// Check if complete
-			for (int cell = 0; cell < mTotalCells; cell++)
+			//Check correctness
+			if (!mGrid[cell].isCorrect()  && mGrid[cell].getTexture() != mTextureCache[0])
 			{
-				if (!mGrid[cell].isCorrect())
-				{
-					completed = false;
-					break;
-				}
-				completed = true;
-			}
-
-			// Set measure time flag and starting time
-			measureTimeForCheckButton = true;
-			time(&startTimeForCheckButton);
-
-			// Reset flag
-			checkSolution = false;
-		}
-		// If currently measuring time
-		if (measureTimeForCheckButton)
-		{
-			int seconds = 2;
-			if (difftime(time(NULL), startTimeForCheckButton) < seconds && completed)
-			{
-				// Set colour to green
-				SDL_Color colour = { 91, 191, 116, SDL_ALPHA_OPAQUE };
-
-				// Set render colour to green
-				SDL_SetRenderDrawColor(mRenderer, colour.r, colour.g, colour.b, SDL_ALPHA_OPAQUE);
-
-				// Set texture to "Right!"
-				mCheckButton.setTexture(mTextureCache[13]);
-
-				// Set mouse down colour to green
-				mCheckButton.setMouseDownColour(colour);
-			}
-			else if (difftime(time(NULL), startTimeForCheckButton) < seconds && !completed)
-			{
-				// Set colour to red
-				SDL_Color colour = { 200, 73, 46, SDL_ALPHA_OPAQUE };
-
-				// Set render colour to red
-				SDL_SetRenderDrawColor(mRenderer, colour.r, colour.g, colour.b, SDL_ALPHA_OPAQUE);
-
-				// Set texture to "Wrong!"
-				mCheckButton.setTexture(mTextureCache[12]);
-
-				// Set mouse down colour to red
-				mCheckButton.setMouseDownColour(colour);
+				mGrid[cell].setIncorrect(true);
+				incorrectCell = cell;
 			}
 			else
 			{
-				// Reset measure time flag
-				measureTimeForCheckButton = false;
+				mGrid[cell].setIncorrect(false);
 			}
-		}
-		else
-		{
-			// Set texture to "Check"
-			mCheckButton.setTexture(mTextureCache[10]);
 
-			// Set render colour to black
-			SDL_SetRenderDrawColor(mRenderer, mClearColour.r, mClearColour.g, mClearColour.b, mClearColour.a);
+			// If "Hint" button was clicked
+			mHintButton.setIncorrect(false);
+			if (checkHint)
+			{
+				if(hintCount>5)
+				{
+					mHintButton.setIncorrect(true);
+				}
+				//Give hint priority to incorrect cell
+				else if (incorrectCell > 0)
+				{
+					// Set current cell selected to false
+					currentCellSelected->setSelected(false);
+						
+					// Set new cell selected to true          
+					currentCellSelected = &mGrid[incorrectCell];
+					currentCellSelected->setSelected(true);
+					currentCellSelected->findSolution(mTextureCache);
+					checkHint = false;
+					incorrectCell = 0;
+				}
+				else
+					while(true)
+					{	
+						//Display Hint randomly at any Blank place
+						cell = rand()%81 + 1;
+						if (mGrid[cell].getTexture() == mTextureCache[0])
+						{
+							// Set current cell selected to false
+							currentCellSelected->setSelected(false);
+								
+							// Set new cell selected to true          
+							currentCellSelected = &mGrid[cell];
+							currentCellSelected->setSelected(true);
+							currentCellSelected->findSolution(mTextureCache);
+							checkHint = false;
+							break;
+						}
+						else
+							continue;
+					}
+			}
 		}
 
 		// Render buttons and texture of each cell to backbuffer
@@ -692,40 +777,50 @@ void Sudoku::Sudoku::play()
 			// Render texture
 			mGrid[cell].renderTexture(mRenderer);
 		}
+		
+		incomplete = false;
+		for (int cell = 0; cell < mTotalCells; cell++)
+		{
+			//check complition
+			if(!mGrid[cell].isCorrect())
+			{
+				incomplete = true;
+			}
+		}
+		//If it is complete end the loop
+		if(!incomplete)
+			{
+				stop = true;
+				completed = true;
+			}
 
-		// Render check button
-		mCheckButton.renderButton(mRenderer);
-		mCheckButton.centerTextureRect();
-		mCheckButton.renderTexture(mRenderer);
+		// Render Hint button
+		mHintButton.renderButton(mRenderer);
+		mHintButton.centerTextureRect();
+		mHintButton.renderTexture(mRenderer);
 
-		// Render new button
+		// Render New button
 		mNewButton.renderButton(mRenderer);
 		mNewButton.centerTextureRect();
 		mNewButton.renderTexture(mRenderer);
 		
-		// Calculate timer
-		/*currentTime = time(nullptr) - startTimer;
-		tm formattedTime;
-		localtime_s(&formattedTime, &currentTime);
-		char timer[10];
-		strftime(timer, sizeof(timer), "%H:%M:%S", &formattedTime);*/
 		currentTime = time(nullptr) - startTimer;
-		int hours = currentTime / 3600;
-		int minutes = (currentTime % 3600) / 60;
-		int seconds = currentTime % 60;
+		hours = currentTime / 3600;
+		minutes = (currentTime % 3600) / 60;
+		seconds = currentTime % 60;
 
 		// Render the timer
 		std::stringstream timerStream;
 		timerStream << std::setfill('0') << std::setw(2) << hours << ":"
 					<< std::setfill('0') << std::setw(2) << minutes << ":"
 					<< std::setfill('0') << std::setw(2) << seconds;
-		std::string timerStr = "Time elapshed " + timerStream.str();
+		elapshedTime = timerStream.str();
+		std::string timerStr = "Time elapsed " + elapshedTime;
 
-		// Load and render timer (TO DO: use preloaded textures to render timer)
+		// Load and render timer
 		SDL_Texture* timerTexture = nullptr;
 		SDL_Color fontColour = { 0, 0, 0, SDL_ALPHA_OPAQUE }; // black
 		loadTexture(timerTexture, timerStr.c_str(), fontColour);
-		//loadTexture(timerTexture, timer, fontColour);
 		mTimer.setTexture(timerTexture);
 		mTimer.renderButton(mRenderer);
 		mTimer.centerTextureRect(1.5, 'n');
@@ -738,16 +833,46 @@ void Sudoku::Sudoku::play()
 
 		// Slow down program becuase it doesn't need to run very fast
 		SDL_Delay(10);
+
 	}
+	// Set current cell selected to false
+	currentCellSelected->setSelected(false);
 
 	// Disable text input
 	SDL_StopTextInput();
 
-	// Free button textures
-	freeTextures();
 
-	// Destroy and quit
-	close();
+	//Calculate total time elapshed
+	totalTime = hours*3600 + minutes*60 + seconds;
+
+	if(exit)
+	{
+		//Reset to Black and Clear the rendarer
+    	SDL_SetRenderDrawColor(mRenderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
+		SDL_RenderClear(mRenderer);
+		return Buttons::LEVEL;
+	}
+	else if(completed)
+	{
+		if(totalTime < mTime)
+		{
+			myfile.setData(totalTime, elapshedTime, mUserName, level);
+			mCongrate(true);
+		}
+		else
+			mCongrate(false);
+		//Reset to Black and Clear the rendarer
+    	SDL_SetRenderDrawColor(mRenderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
+		SDL_RenderClear(mRenderer);
+		return Buttons::LEVEL;
+	}
+	else
+	{
+		//Reset to Black and Clear the rendarer
+    	SDL_SetRenderDrawColor(mRenderer, BlackColor.r, BlackColor.g, BlackColor.b, BlackColor.a);
+		SDL_RenderClear(mRenderer);
+		return Buttons::CLOSE;
+	}
 }
 
 void Sudoku::Sudoku::close()
@@ -757,6 +882,12 @@ void Sudoku::Sudoku::close()
 	SDL_DestroyWindow(mWindow);
 	mRenderer = nullptr;
 	mWindow = nullptr;
+
+	// Free button textures
+	freeTextures();
+
+	//free Image
+	SDL_FreeSurface(mImageSurface);
 
 	// Free font
 	TTF_CloseFont(mFont);

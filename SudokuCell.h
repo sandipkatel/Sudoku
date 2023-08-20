@@ -4,7 +4,7 @@
 #include <iostream>
 #include <stdlib.h> // for atoi
 
-#include "Button.h"
+//#include "Button.h"
 
 namespace Sudoku
 {
@@ -18,6 +18,9 @@ namespace Sudoku
 		char mCharNumber;
 		char mCharSolution;
 
+		//Intiger Solution
+		int mSolution;
+
 	public:
 		// Constructor
 		Cell();
@@ -28,6 +31,7 @@ namespace Sudoku
 
 		// Set solution
 		void setSolution(const int solution);
+		void findSolution(SDL_Texture * textureCatch[]);
 
 		// Set and get editability (setting editability changes colour mapping for button)
 		void setEditable(const bool editable);
@@ -52,7 +56,7 @@ Sudoku::Cell::Cell()
 {
 }
 
-/*void Sudoku::Cell::setNumber(const int number)
+void Sudoku::Cell::setNumber(const int number)
 {
 	if (number == 0)
 	{
@@ -62,15 +66,16 @@ Sudoku::Cell::Cell()
 	{
 		mCharNumber = '0' + number;
 	}
-}*/
+}
 
 char Sudoku::Cell::getNumber() const
 {
 	return mCharNumber;
 }
 
-/*void Sudoku::Cell::setSolution(const int solution)
+void Sudoku::Cell::setSolution(const int solution)
 {
+	mSolution = solution;
 	if (solution == 0)
 	{
 		mCharSolution = ' ';
@@ -79,7 +84,13 @@ char Sudoku::Cell::getNumber() const
 	{
 		mCharSolution = '0' + solution;
 	}
-}*/
+}
+
+void Sudoku::Cell::findSolution(SDL_Texture * textureCatch[])
+{
+	setTexture(textureCatch[mSolution]);
+	mCharNumber = mCharSolution;
+}
 
 void Sudoku::Cell::setEditable(const bool editable)
 {
@@ -107,7 +118,7 @@ bool Sudoku::Cell::isEditable() const
 void Sudoku::Cell::handleKeyboardEvent(const SDL_Event* event, SDL_Texture* textureCache[])
 {
 	// Handle backspace
-	if (event->key.keysym.sym == SDLK_BACKSPACE /*&& mCharNumber != ' '*/)
+	if (event->key.keysym.sym == SDLK_BACKSPACE && mCharNumber != ' ')
 	{
 		// Empty char
 		mCharNumber = ' ';
@@ -126,7 +137,6 @@ void Sudoku::Cell::handleKeyboardEvent(const SDL_Event* event, SDL_Texture* text
 
 			// Set character based on number
 			setTexture(textureCache[atoi(event->text.text)]);
-
 		}
 	}
 }
